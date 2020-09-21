@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -34,12 +35,25 @@ namespace Consumption.Console
                 //convert to models
                 var billingModel = JsonConvert.DeserializeObject<BillingModel>(content);
                 System.Console.WriteLine($"Details: {Environment.NewLine}");
+
                 foreach (var usageResource in billingModel.UsageList)
                 {
                     System.Console.WriteLine(
                         $"{usageResource.Name} used in {usageResource.Properties.ConsumedService} " +
                         $"{usageResource.Properties.UsageQuantity} {usageResource.Properties.Currency} " + "" +
                         $"in {usageResource.Properties.SubscriptionName}");
+                }
+
+                //do a simple group by to estimate cost
+                var stats = from usage in billingModel.UsageList
+                    group usage.Properties by usage.Properties.ConsumedService
+                    into usageGroup
+                    orderby usageGroup.Key
+                    select new {ServiceName = usageGroup.Key, ServiceCharge = usageGroup.Sum(d => d.UsageQuantity)};
+                foreach (var currentStat in stats)
+                {
+                    System.Console.WriteLine(
+                        $"For {currentStat.ServiceName} with the ammount of {currentStat.ServiceCharge}");
                 }
             }
             else
