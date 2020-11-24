@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -7,6 +8,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Newtonsoft.Json;
+using Spectre.Console;
 
 namespace Consumption.Console
 {
@@ -14,7 +16,7 @@ namespace Consumption.Console
     {
         static async Task Main(string[] args)
         {
-            System.Console.WriteLine("Authenticating against Azure...");
+            HorizontalRule("Authenticating against Azure");
 
             //authenticate against Azure
             //how to register application, is available here https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal
@@ -24,25 +26,44 @@ namespace Consumption.Console
             string resourceId = "https://management.azure.com/";
 
             var token = await AuthenticateAsync(authority, clientId, secret, resourceId);
-            System.Console.WriteLine("Logged in with token - " + token.PasswordOrToken);
+            AnsiConsole.WriteLine("Logged in with token - " + token.PasswordOrToken);
 
             //token aquired - issue command to work with consumption API
             string uri =
                 $"https://management.azure.com/subscriptions/{Environment.GetEnvironmentVariable("SubscriptionId")}/providers/Microsoft.Consumption/usageDetails?api-version=2018-03-31&$expand=properties/additionalProperties";
+
+            AnsiConsole.WriteLine(uri);
+
             var (content, statusCode) = await GetAsync(uri, token.PasswordOrToken);
             if (statusCode == HttpStatusCode.OK)
             {
                 //convert to models
                 var billingModel = JsonConvert.DeserializeObject<BillingModel>(content);
-                System.Console.WriteLine($"Details: {Environment.NewLine}");
+                HorizontalRule("Details about billing model");
+
+                var tblBillingModel = new Table();
+                tblBillingModel.Border(TableBorder.Rounded);
+
+                tblBillingModel.AddColumn("Name of service");
+                tblBillingModel.AddColumn(new TableColumn("Usage quantity").Centered());
+                tblBillingModel.AddColumn("Subscription name");
 
                 foreach (var usageResource in billingModel.UsageList)
                 {
-                    System.Console.WriteLine(
-                        $"{usageResource.Name} used in {usageResource.Properties.ConsumedService} " +
-                        $"{usageResource.Properties.UsageQuantity} {usageResource.Properties.Currency} " + "" +
-                        $"in {usageResource.Properties.SubscriptionName}");
+                    tblBillingModel.AddRow($"{usageResource.Name} used in {usageResource.Properties.ConsumedService}",
+                        $"{usageResource.Properties.UsageQuantity} {usageResource.Properties.Currency}",
+                        $"{usageResource.Properties.SubscriptionName}");
                 }
+                
+                AnsiConsole.Render(tblBillingModel);
+
+                HorizontalRule("Simple cost estimation");
+                
+                var tblEstimation = new Table();
+                tblEstimation.Border(TableBorder.Rounded);
+
+                tblEstimation.AddColumn("Service name");
+                tblEstimation.AddColumn("Service charge");
 
                 //do a simple group by to estimate cost
                 var stats = from usage in billingModel.UsageList
@@ -52,9 +73,11 @@ namespace Consumption.Console
                     select new {ServiceName = usageGroup.Key, ServiceCharge = usageGroup.Sum(d => d.UsageQuantity)};
                 foreach (var currentStat in stats)
                 {
-                    System.Console.WriteLine(
-                        $"For {currentStat.ServiceName} with the ammount of {currentStat.ServiceCharge}");
+                    tblEstimation.AddRow(currentStat.ServiceName, 
+                        currentStat.ServiceCharge.ToString(CultureInfo.InvariantCulture));
                 }
+                
+                AnsiConsole.Render(tblEstimation);
             }
             else
             {
@@ -121,9 +144,17 @@ namespace Consumption.Console
             catch (Exception ex)
             {
                 content += "\n\n" + ex.Message;
+                AnsiConsole.WriteLine(ex.Message);
             }
 
             return (Content: content, StatusCode: response?.StatusCode ?? HttpStatusCode.InternalServerError);
+        }
+
+        private static void HorizontalRule(string title)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.Render(new Rule($"[white bold]{title}[/]").RuleStyle("grey").LeftAligned());
+            AnsiConsole.WriteLine();
         }
     }
 }
