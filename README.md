@@ -14,13 +14,13 @@ In order for demo to work, you need to configure environment variables inside [P
 
 TenantId you can get from Azure Active Directory blade inside [Azure Portal](https://portal.azure.com) in Overview tab.
 
-![tenantid information](https://csacoresettings.blob.core.windows.net/public/azure-consumption-api-demo-tenantid.png)
+![tenantid information](https://webeudatastorage.blob.core.windows.net/web/azure-consumption-api-demo-tenantid.png)
 
 2. SubscriptionId
 
 SubscriptionId can be found in Subscription blade inside [Azure Portal](https://portal.azure.com) in list subscriptions tab. You can search for *subscriptions* through search box.
 
-![subscriptionId in settings](https://csacoresettings.blob.core.windows.net/public/azure-consumption-api-demo-subscriptionid.png)
+![subscriptionId in settings](https://webeudatastorage.blob.core.windows.net/web/azure-consumption-api-demo-subscriptionid.png)
 
 In order to full-fill the ClientId and Secret, you need to follow [this instructions](https://docs.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal).
 Don't forget to use RBAC to allow the newly created application to access subscription information.
